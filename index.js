@@ -136,28 +136,30 @@ async function cmdClear(sessionId, messageId) {
 
 // Integración con Google Gemini
 async function getGeminiReply(prompt) {
-  const data = JSON.stringify({
-    model: GEMINI_MODEL,
-    messages: prompt,
-  });
+  const contents = prompt.map((item) => ({
+    role: item.role === "assistant" ? "model" : "user",
+    parts: [{ text: item.content }],
+  }));
 
-  const config = {
-    method: "post",
-    maxBodyLength: Infinity,
-    url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-    headers: {
-      Authorization: `Bearer ${GEMINI_KEY}`,
-      "Content-Type": "application/json",
-    },
-    data: data,
-    timeout: 50000,
-  };
+  const modelName = (GEMINI_MODEL || "gemini-1.5-flash").trim();
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`;
 
   try {
-    const response = await axios(config);
-    return response.data.choices[0].message.content.replace("\n\n", "");
+    const response = await axios.post(
+      url,
+      { contents },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": GEMINI_KEY.trim(),
+        },
+        timeout: 50000,
+      }
+    );
+
+    return response.data.candidates[0].content.parts[0].text;
   } catch (e) {
-    logger("Gemini API Error", e.response ? e.response.data : e.message);
+    logger("Gemini API Error", e.response ? JSON.stringify(e.response.data) : e.message);
     return "This question is too difficult, you may ask my owner.";
   }
 }
