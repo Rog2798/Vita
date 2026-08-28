@@ -141,8 +141,14 @@ async function getGeminiReply(prompt) {
     parts: [{ text: item.content }],
   }));
 
-  const modelName = (GEMINI_MODEL || "gemini-1.5-flash").trim();
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`;
+  // Asegura el formato correcto del modelo
+  let modelName = (GEMINI_MODEL || "gemini-2.5-flash").trim();
+  if (!modelName.startsWith("models/")) {
+    modelName = `models/${modelName}`;
+  }
+
+  // URL usando la versión v1beta oficial
+  const url = `https://generativelanguage.googleapis.com/v1beta/${modelName}:generateContent`;
 
   try {
     const response = await axios.post(
