@@ -1,7 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const lark = require("@larksuiteoapi/node-sdk");
-const { GoogleGenAI } = require("@google/genai");
+const axios = require("axios");
 const { Redis } = require("@upstash/redis");
 
 const app = express();
@@ -11,10 +11,7 @@ app.use(express.json());
 const LARK_APP_ID = process.env.APPID || "";
 const LARK_APP_SECRET = process.env.SECRET || "";
 const GEMINI_KEY = process.env.KEY || "";
-const GEMINI_MODEL = process.env.MODEL || "gemini-2.5-flash";
-
-// Inicializar SDK oficial de Gemini
-const ai = new GoogleGenAI({ apiKey: GEMINI_KEY.trim() });
+const GEMINI_MODEL = process.env.MODEL || "gemini-1.5-flash";
 
 // Configuración de Redis
 const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
@@ -137,16 +134,24 @@ async function cmdClear(sessionId, messageId) {
   await reply(messageId, "✅ All history removed");
 }
 
-// Integración Nativa con el SDK oficial
+// Integración con Google Gemini REST API
 async function getGeminiReply(contents) {
+  const cleanModel = (GEMINI_MODEL || "gemini-1.5-flash").trim().replace(/^models\//, "");
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent?key=${GEMINI_KEY.trim()}`;
+
   try {
-    const response = await ai.models.generateContent({
-      model: GEMINI_MODEL.trim(),
-      contents: contents,
-    });
-    return response.text;
+    const response = await axios.post(
+      url,
+      { contents },
+      {
+        headers: { "Content-Type": "application/json" },
+        timeout: 50000,
+      }
+    );
+
+    return response.data.candidates[0].content.parts[0].text;
   } catch (e) {
-    logger("Gemini API Error", e.message || e);
+    logger("Gemini API Error", e.response ? JSON.stringify(e.response.data) : e.message);
     return "This question is too difficult, you may ask my owner.";
   }
 }
@@ -161,7 +166,7 @@ function doctor() {
   }
   return {
     code: 0,
-    message: "✅ Configuración correcta con Gemini SDK.",
+    message: "✅ Configuración correcta con Gemini.",
     meta: { LARK_APP_ID, GEMINI_MODEL },
   };
 }
