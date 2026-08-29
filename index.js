@@ -1,7 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const lark = require("@larksuiteoapi/node-sdk");
-const axios = require("axios");
+const { GoogleGenAI } = require("@google/genai");
 const { Redis } = require("@upstash/redis");
 
 const app = express();
@@ -11,7 +11,10 @@ app.use(express.json());
 const LARK_APP_ID = process.env.APPID || "";
 const LARK_APP_SECRET = process.env.SECRET || "";
 const GEMINI_KEY = process.env.KEY || "";
-const GEMINI_MODEL = process.env.MODEL || "gemini-1.5-flash";
+const GEMINI_MODEL = process.env.MODEL || "gemini-2.5-flash";
+
+// Inicializar SDK oficial de Gemini
+const ai = new GoogleGenAI({ apiKey: GEMINI_KEY.trim() });
 
 // Configuración de Redis
 const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
@@ -58,16 +61,16 @@ async function getHistory(sessionId) {
 }
 
 async function buildConversation(sessionId, question) {
-  let prompt = [];
+  let contents = [];
   const historyMsgs = await getHistory(sessionId);
 
   for (const conversation of historyMsgs) {
-    prompt.push({ role: "user", content: conversation.question });
-    prompt.push({ role: "assistant", content: conversation.answer });
+    contents.push({ role: "user", parts: [{ text: conversation.question }] });
+    contents.push({ role: "model", parts: [{ text: conversation.answer }] });
   }
 
-  prompt.push({ role: "user", content: question });
-  return prompt;
+  contents.push({ role: "user", parts: [{ text: question }] });
+  return contents;
 }
 
 async function saveConversation(sessionId, question, answer) {
@@ -134,38 +137,16 @@ async function cmdClear(sessionId, messageId) {
   await reply(messageId, "✅ All history removed");
 }
 
-// Integración con Google Gemini
-async function getGeminiReply(prompt) {
-  const contents = prompt.map((item) => ({
-    role: item.role === "assistant" ? "model" : "user",
-    parts: [{ text: item.content }],
-  }));
-
-  // Asegura el formato correcto del modelo
-  let modelName = (GEMINI_MODEL || "gemini-2.5-flash").trim();
-  if (!modelName.startsWith("models/")) {
-    modelName = `models/${modelName}`;
-  }
-
-  // URL usando la versión v1beta oficial
-  const url = `https://generativelanguage.googleapis.com/v1beta/${modelName}:generateContent`;
-
+// Integración Nativa con el SDK oficial
+async function getGeminiReply(contents) {
   try {
-    const response = await axios.post(
-      url,
-      { contents },
-      {
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": GEMINI_KEY.trim(),
-        },
-        timeout: 50000,
-      }
-    );
-
-    return response.data.candidates[0].content.parts[0].text;
+    const response = await ai.models.generateContent({
+      model: GEMINI_MODEL.trim(),
+      contents: contents,
+    });
+    return response.text;
   } catch (e) {
-    logger("Gemini API Error", e.response ? JSON.stringify(e.response.data) : e.message);
+    logger("Gemini API Error", e.message || e);
     return "This question is too difficult, you may ask my owner.";
   }
 }
@@ -180,7 +161,7 @@ function doctor() {
   }
   return {
     code: 0,
-    message: "✅ Configuración correcta con Gemini.",
+    message: "✅ Configuración correcta con Gemini SDK.",
     meta: { LARK_APP_ID, GEMINI_MODEL },
   };
 }
@@ -195,8 +176,8 @@ async function handleReply(userInput, sessionId, messageId, eventId) {
     return await cmdProcess({ action, sessionId, messageId });
   }
 
-  const prompt = await buildConversation(sessionId, question);
-  const geminiResponse = await getGeminiReply(prompt);
+  const contents = await buildConversation(sessionId, question);
+  const geminiResponse = await getGeminiReply(contents);
 
   await saveConversation(sessionId, question, geminiResponse);
   await reply(messageId, geminiResponse);
