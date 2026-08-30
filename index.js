@@ -9,8 +9,8 @@ app.use(express.json());
 
 const LARK_APP_ID = process.env.APPID || "";
 const LARK_APP_SECRET = process.env.SECRET || "";
-const OPENAI_KEY = process.env.KEY || "";
-const OPENAI_MODEL = process.env.MODEL || "gpt-4o-mini";
+const GROQ_KEY = process.env.KEY || "";
+const GROQ_MODEL = process.env.MODEL || "llama-3.3-70b-versatile";
 
 const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
   ? Redis.fromEnv() : null;
@@ -39,7 +39,7 @@ async function getHistory(sessionId) {
 }
 
 async function buildConversation(sessionId, question) {
-  let messages = [{ role: "system", content: "You are a helpful assistant." }];
+  let messages = [];
   const history = await getHistory(sessionId);
   for (const h of history) {
     messages.push({ role: "user", content: h.question });
@@ -69,16 +69,16 @@ async function isDuplicateEvent(eventId) {
   } catch (e) { return false; }
 }
 
-async function getOpenAIReply(messages) {
+async function getGroqReply(messages) {
   try {
     const response = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
-      { model: OPENAI_MODEL.trim(), messages: messages },
-      { headers: { Authorization: `Bearer ${OPENAI_KEY.trim()}`, "Content-Type": "application/json" }, timeout: 50000 }
+      "https://api.groq.com/openai/v1/chat/completions",
+      { model: GROQ_MODEL.trim(), messages: messages },
+      { headers: { Authorization: `Bearer ${GROQ_KEY.trim()}`, "Content-Type": "application/json" }, timeout: 30000 }
     );
     return response.data.choices[0].message.content;
   } catch (e) {
-    logger("OpenAI API Error", e.response ? JSON.stringify(e.response.data) : e.message);
+    logger("Groq API Error", e.response ? JSON.stringify(e.response.data) : e.message);
     return "This question is too difficult, you may ask my owner.";
   }
 }
@@ -91,7 +91,7 @@ async function handleReply(userInput, sessionId, messageId, eventId) {
     return { code: 0 };
   }
   const messages = await buildConversation(sessionId, question);
-  const answer = await getOpenAIReply(messages);
+  const answer = await getGroqReply(messages);
   await saveConversation(sessionId, question, answer);
   await reply(messageId, answer);
   return { code: 0 };
