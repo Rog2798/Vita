@@ -10,8 +10,8 @@ app.use(express.json());
 // Variables de entorno
 const LARK_APP_ID = process.env.APPID || "";
 const LARK_APP_SECRET = process.env.SECRET || "";
-const GEMINI_KEY = process.env.KEY || "";
-const GEMINI_MODEL = process.env.MODEL || "gemini-1.5-flash";
+const GROQ_KEY = process.env.KEY || "";
+const GROQ_MODEL = process.env.MODEL || "llama-3.1-8b-instant";
 
 // Configuración de Redis
 const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
@@ -58,16 +58,16 @@ async function getHistory(sessionId) {
 }
 
 async function buildConversation(sessionId, question) {
-  let contents = [];
+  let messages = [];
   const historyMsgs = await getHistory(sessionId);
 
   for (const conversation of historyMsgs) {
-    contents.push({ role: "user", parts: [{ text: conversation.question }] });
-    contents.push({ role: "model", parts: [{ text: conversation.answer }] });
+    messages.push({ role: "user", content: conversation.question });
+    messages.push({ role: "assistant", content: conversation.answer });
   }
 
-  contents.push({ role: "user", parts: [{ text: question }] });
-  return contents;
+  messages.push({ role: "user", content: question });
+  return messages;
 }
 
 async function saveConversation(sessionId, question, answer) {
@@ -121,7 +121,7 @@ async function cmdProcess(cmdParams) {
 }
 
 async function cmdHelp(messageId) {
-  const helpText = `Lark Bot (Powered by Gemini)
+  const helpText = `Lark Bot (Powered by Groq / Llama 3)
 
 Usage:
     /clear    remove conversation history.
@@ -134,27 +134,27 @@ async function cmdClear(sessionId, messageId) {
   await reply(messageId, "✅ All history removed");
 }
 
-// Integración con Google Gemini REST API
-async function getGeminiReply(contents) {
-  // Limpia el nombre del modelo y asigna un valor por defecto válido
-  let rawModel = (GEMINI_MODEL || "gemini-2.5-flash").trim().replace(/^models\//, "");
-  if (rawModel === "gemini-1.5-flash") rawModel = "gemini-2.5-flash";
-
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${rawModel}:generateContent?key=${GEMINI_KEY.trim()}`;
+// Integración con Groq API
+async function getGroqReply(messages) {
+  const config = {
+    method: "post",
+    url: "https://api.groq.com/openai/v1/chat/completions",
+    headers: {
+      Authorization: `Bearer ${GROQ_KEY.trim()}`,
+      "Content-Type": "application/json",
+    },
+    data: {
+      model: GROQ_MODEL.trim(),
+      messages: messages,
+    },
+    timeout: 30000,
+  };
 
   try {
-    const response = await axios.post(
-      url,
-      { contents },
-      {
-        headers: { "Content-Type": "application/json" },
-        timeout: 50000,
-      }
-    );
-
-    return response.data.candidates[0].content.parts[0].text;
+    const response = await axios(config);
+    return response.data.choices[0].message.content;
   } catch (e) {
-    logger("Gemini API Error", e.response ? JSON.stringify(e.response.data) : e.message);
+    logger("Groq API Error", e.response ? JSON.stringify(e.response.data) : e.message);
     return "This question is too difficult, you may ask my owner.";
   }
 }
@@ -164,13 +164,13 @@ function doctor() {
   if (LARK_APP_ID === "" || !LARK_APP_ID.startsWith("cli_")) {
     return { code: 1, message: "Lark APP ID faltante o inválido." };
   }
-  if (GEMINI_KEY === "") {
-    return { code: 1, message: "Gemini Key faltante." };
+  if (GROQ_KEY === "") {
+    return { code: 1, message: "Groq Key faltante." };
   }
   return {
     code: 0,
-    message: "✅ Configuración correcta con Gemini.",
-    meta: { LARK_APP_ID, GEMINI_MODEL },
+    message: "✅ Configuración correcta con Groq.",
+    meta: { LARK_APP_ID, GROQ_MODEL },
   };
 }
 
@@ -184,11 +184,11 @@ async function handleReply(userInput, sessionId, messageId, eventId) {
     return await cmdProcess({ action, sessionId, messageId });
   }
 
-  const contents = await buildConversation(sessionId, question);
-  const geminiResponse = await getGeminiReply(contents);
+  const messages = await buildConversation(sessionId, question);
+  const groqResponse = await getGroqReply(messages);
 
-  await saveConversation(sessionId, question, geminiResponse);
-  await reply(messageId, geminiResponse);
+  await saveConversation(sessionId, question, groqResponse);
+  await reply(messageId, groqResponse);
 
   return { code: 0 };
 }
