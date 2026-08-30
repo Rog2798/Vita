@@ -10,7 +10,6 @@ app.use(express.json());
 const LARK_APP_ID = process.env.APPID || "";
 const LARK_APP_SECRET = process.env.SECRET || "";
 const GROQ_KEY = process.env.KEY || "";
-const GROQ_MODEL = process.env.MODEL || "llama-3.3-70b-versatile";
 
 const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
   ? Redis.fromEnv() : null;
@@ -69,31 +68,42 @@ async function isDuplicateEvent(eventId) {
   } catch (e) { return false; }
 }
 
-// Integración con Groq API
-async function getGroqReply(messages) {
-  // Ignoramos la variable de Vercel y forzamos el modelo funcional
-  const activeModel = "llama-3.1-8b-instant";
-
-  const config = {
-    method: "post",
-    url: "https://api.groq.com/openai/v1/chat/completions",
-    headers: {
-      Authorization: `Bearer ${GROQ_KEY.trim()}`,
-      "Content-Type": "application/json",
-    },
-    data: {
-      model: activeModel,
-      messages: messages,
-    },
-    timeout: 30000,
-  };
-
+// Obtiene un modelo disponible directamente desde Groq
+async function getActiveGroqModel() {
   try {
-    const response = await axios(config);
+    const res = await axios.get("https://api.groq.com/openai/v1/models", {
+      headers: { Authorization: `Bearer ${GROQ_KEY.trim()}` }
+    });
+    if (res.data && res.data.data && res.data.data.length > 0) {
+      return res.data.data[0].id; // Primer modelo activo en tu cuenta
+    }
+  } catch (e) {
+    logger("Model Fetch Error", e.message);
+  }
+  return "llama-3.3-70b-versatile";
+}
+
+async function getGroqReply(messages) {
+  try {
+    const activeModel = await getActiveGroqModel();
+    
+    const response = await axios.post(
+      "https://api.groq.com/openai/v1/chat/completions",
+      { model: activeModel, messages: messages },
+      { 
+        headers: { 
+          Authorization: `Bearer ${GROQ_KEY.trim()}`, 
+          "Content-Type": "application/json" 
+        }, 
+        timeout: 30000 
+      }
+    );
     return response.data.choices[0].message.content;
   } catch (e) {
-    logger("Groq API Error", e.response ? JSON.stringify(e.response.data) : e.message);
-    return "This question is too difficult, you may ask my owner.";
+    const detail = e.response ? JSON.stringify(e.response.data) : e.message;
+    logger("Groq API Error", detail);
+    // Retorna el error directamente en el chat para no adivinar más
+    return `⚠️ Error API (${e.response?.status || 500}): ${detail}`;
   }
 }
 
@@ -101,7 +111,7 @@ async function handleReply(userInput, sessionId, messageId, eventId) {
   const question = userInput.text.replace("@_user_1", "");
   if (question.trim() === "/clear") {
     if (redis) await redis.del(`history:${sessionId}`);
-    await reply(messageId, "✅ All history removed");
+    await reply(messageId, "✅ Historial borrado");
     return { code: 0 };
   }
   const messages = await buildConversation(sessionId, question);
@@ -128,4 +138,4 @@ app.post("/", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
