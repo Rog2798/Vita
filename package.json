@@ -1,7 +1,7 @@
 {
-  "name": "lark-gemini-bot",
+  "name": "lark-openai-bot",
   "version": "1.0.0",
-  "description": "Bot de Lark con Gemini",
+  "description": "Bot de Lark con OpenAI",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
