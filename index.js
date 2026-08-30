@@ -69,13 +69,27 @@ async function isDuplicateEvent(eventId) {
   } catch (e) { return false; }
 }
 
+// Integración con Groq API
 async function getGroqReply(messages) {
+  // Ignoramos la variable de Vercel y forzamos el modelo funcional
+  const activeModel = "llama-3.1-8b-instant";
+
+  const config = {
+    method: "post",
+    url: "https://api.groq.com/openai/v1/chat/completions",
+    headers: {
+      Authorization: `Bearer ${GROQ_KEY.trim()}`,
+      "Content-Type": "application/json",
+    },
+    data: {
+      model: activeModel,
+      messages: messages,
+    },
+    timeout: 30000,
+  };
+
   try {
-    const response = await axios.post(
-      "https://api.groq.com/openai/v1/chat/completions",
-      { model: GROQ_MODEL.trim(), messages: messages },
-      { headers: { Authorization: `Bearer ${GROQ_KEY.trim()}`, "Content-Type": "application/json" }, timeout: 30000 }
-    );
+    const response = await axios(config);
     return response.data.choices[0].message.content;
   } catch (e) {
     logger("Groq API Error", e.response ? JSON.stringify(e.response.data) : e.message);
