@@ -136,6 +136,11 @@ async function cmdClear(sessionId, messageId) {
 
 // Integración con Groq API
 async function getGroqReply(messages) {
+  // Asegura el modelo estable de Mixtral como respaldo
+  const activeModel = (GROQ_MODEL && GROQ_MODEL !== "llama-3.1-8b-instant") 
+    ? GROQ_MODEL.trim() 
+    : "mixtral-8x7b-32768";
+
   const config = {
     method: "post",
     url: "https://api.groq.com/openai/v1/chat/completions",
@@ -144,7 +149,7 @@ async function getGroqReply(messages) {
       "Content-Type": "application/json",
     },
     data: {
-      model: GROQ_MODEL.trim(),
+      model: activeModel,
       messages: messages,
     },
     timeout: 30000,
