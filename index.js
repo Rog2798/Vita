@@ -136,8 +136,11 @@ async function cmdClear(sessionId, messageId) {
 
 // Integración con Google Gemini REST API
 async function getGeminiReply(contents) {
-  const cleanModel = (GEMINI_MODEL || "gemini-1.5-flash").trim().replace(/^models\//, "");
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent?key=${GEMINI_KEY.trim()}`;
+  // Limpia el nombre del modelo y asigna un valor por defecto válido
+  let rawModel = (GEMINI_MODEL || "gemini-2.5-flash").trim().replace(/^models\//, "");
+  if (rawModel === "gemini-1.5-flash") rawModel = "gemini-2.5-flash";
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${rawModel}:generateContent?key=${GEMINI_KEY.trim()}`;
 
   try {
     const response = await axios.post(
