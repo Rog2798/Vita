@@ -9,7 +9,8 @@ app.use(express.json());
 
 const LARK_APP_ID = process.env.APPID || "";
 const LARK_APP_SECRET = process.env.SECRET || "";
-const GROQ_KEY = process.env.KEY || "";
+const OPENAI_KEY = process.env.KEY || "";
+const OPENAI_MODEL = process.env.MODEL || "gpt-4o-mini";
 
 const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
   ? Redis.fromEnv() : null;
@@ -38,7 +39,7 @@ async function getHistory(sessionId) {
 }
 
 async function buildConversation(sessionId, question) {
-  let messages = [];
+  let messages = [{ role: "system", content: "You are a helpful assistant." }];
   const history = await getHistory(sessionId);
   for (const h of history) {
     messages.push({ role: "user", content: h.question });
@@ -68,42 +69,24 @@ async function isDuplicateEvent(eventId) {
   } catch (e) { return false; }
 }
 
-// Obtiene un modelo disponible directamente desde Groq
-async function getActiveGroqModel() {
+async function getOpenAIReply(messages) {
   try {
-    const res = await axios.get("https://api.groq.com/openai/v1/models", {
-      headers: { Authorization: `Bearer ${GROQ_KEY.trim()}` }
-    });
-    if (res.data && res.data.data && res.data.data.length > 0) {
-      return res.data.data[0].id; // Primer modelo activo en tu cuenta
-    }
-  } catch (e) {
-    logger("Model Fetch Error", e.message);
-  }
-  return "llama-3.3-70b-versatile";
-}
-
-async function getGroqReply(messages) {
-  try {
-    const activeModel = await getActiveGroqModel();
-    
     const response = await axios.post(
-      "https://api.groq.com/openai/v1/chat/completions",
-      { model: activeModel, messages: messages },
+      "https://api.openai.com/v1/chat/completions",
+      { model: OPENAI_MODEL.trim(), messages: messages },
       { 
         headers: { 
-          Authorization: `Bearer ${GROQ_KEY.trim()}`, 
+          Authorization: `Bearer ${OPENAI_KEY.trim()}`, 
           "Content-Type": "application/json" 
         }, 
-        timeout: 30000 
+        timeout: 50000 
       }
     );
     return response.data.choices[0].message.content;
   } catch (e) {
     const detail = e.response ? JSON.stringify(e.response.data) : e.message;
-    logger("Groq API Error", detail);
-    // Retorna el error directamente en el chat para no adivinar más
-    return `⚠️ Error API (${e.response?.status || 500}): ${detail}`;
+    logger("OpenAI API Error", detail);
+    return `Error API: ${detail}`;
   }
 }
 
@@ -115,7 +98,7 @@ async function handleReply(userInput, sessionId, messageId, eventId) {
     return { code: 0 };
   }
   const messages = await buildConversation(sessionId, question);
-  const answer = await getGroqReply(messages);
+  const answer = await getOpenAIReply(messages);
   await saveConversation(sessionId, question, answer);
   await reply(messageId, answer);
   return { code: 0 };
@@ -138,4 +121,4 @@ app.post("/", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server on port ${PORT}`));
