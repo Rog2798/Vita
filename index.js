@@ -14,7 +14,7 @@ const LARK_APP_SECRET = process.env.SECRET || "";
 const OPENAI_KEY = process.env.KEY || "";
 const OPENAI_MODEL = process.env.MODEL || "gpt-4o-mini";
 
-// 1. Cargar la base de datos de productos desde el archivo productos.md
+// Cargar la base de datos de productos desde productos.md
 let productosKnowledge = "";
 try {
   const filePath = path.join(__dirname, "productos.md");
@@ -35,6 +35,18 @@ const client = new lark.Client({
 
 function logger(tag, param) { console.error(`[${tag}]`, param); }
 
+// Función para eliminar todo el formato Markdown predeterminado de OpenAI
+function cleanMarkdown(text) {
+  if (!text) return "";
+  return text
+    .replace(/^#{1,6}\s*/gm, "")       // Elimina los numerales de encabezados (###)
+    .replace(/\*\*([^*]+)\*\*/g, "$1") // Elimina las negritas (**texto**)
+    .replace(/\*([^*]+)\*/g, "$1")     // Elimina las cursivas (*texto*)
+    .replace(/_([^_]+)_/g, "$1")       // Elimina subguiones (_texto_)
+    .replace(/`([^`]+)`/g, "$1")       // Elimina marcas de código (`texto`)
+    .trim();
+}
+
 async function reply(messageId, content) {
   try {
     return await client.im.message.reply({
@@ -50,7 +62,6 @@ async function getHistory(sessionId) {
   catch (e) { return []; }
 }
 
-// 2. Construir la conversación inyectando el manual de productos
 async function buildConversation(sessionId, question) {
   let messages = [
     {
@@ -68,7 +79,7 @@ REGLAS DE RESPUESTA OBLIGATORIAS:
 2. Si la información o el producto NO se encuentra especificado en la base de datos, responde exactamente: "Lo siento, no tengo esa información registrada en la base de datos oficial de productos."
 3. JAMÁS inventes especificaciones, precios, medidas o funciones que no estén explícitamente escritas.
 4. Mantén un tono profesional, claro y directo.
-5. FORMATO VISUAL: NO uses símbolos de Markdown como "###", "**", "_" o similares. Para dar estructura al texto usa únicamente MAYÚSCULAS para títulos, saltos de línea, emojis para destacar y viñetas simples (- o •).`
+5. Usa únicamente texto plano con mayúsculas para títulos, guiones (-) o puntos (•) para listas y emojis para destacar aspectos clave.`
     }
   ];
 
@@ -130,9 +141,13 @@ async function handleReply(userInput, sessionId, messageId, eventId) {
     return { code: 0 };
   }
   const messages = await buildConversation(sessionId, question);
-  const answer = await getOpenAIReply(messages);
-  await saveConversation(sessionId, question, answer);
-  await reply(messageId, answer);
+  const rawAnswer = await getOpenAIReply(messages);
+  
+  // Limpieza estricta de Markdown antes de responder en Lark
+  const cleanAnswer = cleanMarkdown(rawAnswer);
+
+  await saveConversation(sessionId, question, cleanAnswer);
+  await reply(messageId, cleanAnswer);
   return { code: 0 };
 }
 
