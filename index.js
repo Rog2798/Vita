@@ -3,6 +3,8 @@ const express = require("express");
 const lark = require("@larksuiteoapi/node-sdk");
 const axios = require("axios");
 const { Redis } = require("@upstash/redis");
+const fs = require("fs");
+const path = require("path");
 
 const app = express();
 app.use(express.json());
@@ -11,6 +13,16 @@ const LARK_APP_ID = process.env.APPID || "";
 const LARK_APP_SECRET = process.env.SECRET || "";
 const OPENAI_KEY = process.env.KEY || "";
 const OPENAI_MODEL = process.env.MODEL || "gpt-4o-mini";
+
+// 1. Cargar la base de datos de productos desde el archivo productos.md
+let productosKnowledge = "";
+try {
+  const filePath = path.join(__dirname, "productos.md");
+  productosKnowledge = fs.readFileSync(filePath, "utf8");
+  console.log("✅ Base de datos productos.md cargada correctamente.");
+} catch (error) {
+  console.error("⚠️ No se pudo leer productos.md:", error.message);
+}
 
 const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
   ? Redis.fromEnv() : null;
@@ -38,8 +50,27 @@ async function getHistory(sessionId) {
   catch (e) { return []; }
 }
 
+// 2. Construir la conversación inyectando el manual de productos
 async function buildConversation(sessionId, question) {
-  let messages = [{ role: "system", content: "You are a helpful assistant." }];
+  let messages = [
+    {
+      role: "system",
+      content: `Eres el asistente virtual oficial de soporte e información sobre productos de Cubitt.
+
+A continuación tienes la BASE DE DATOS OFICIAL de nuestros productos:
+
+--- INICIO BASE DE DATOS ---
+${productosKnowledge}
+--- FIN BASE DE DATOS ---
+
+REGLAS DE RESPUESTA OBLIGATORIAS:
+1. Responde a las dudas del usuario basándote ÚNICAMENTE en la base de datos oficial provista arriba.
+2. Si la información o el producto NO se encuentra especificado en la base de datos, responde exactamente: "Lo siento, no tengo esa información registrada en la base de datos oficial de productos."
+3. JAMÁS inventes especificaciones, precios, medidas o funciones que no estén explícitamente escritas.
+4. Mantén un tono profesional, claro y directo.`
+    }
+  ];
+
   const history = await getHistory(sessionId);
   for (const h of history) {
     messages.push({ role: "user", content: h.question });
@@ -86,7 +117,7 @@ async function getOpenAIReply(messages) {
   } catch (e) {
     const detail = e.response ? JSON.stringify(e.response.data) : e.message;
     logger("OpenAI API Error", detail);
-    return `Error API: ${detail}`;
+    return "En este momento no puedo consultar la información. Por favor intenta de nuevo.";
   }
 }
 
