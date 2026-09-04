@@ -202,3 +202,58 @@
 - **Potencia de sonido:** 5 W[cite: 1]
 - **Tiempo de carga completa:** 2 horas[cite: 1]
 - **Tiempo de reproducción continua:** Hasta 6 horas[cite: 1]
+
+---
+
+---
+
+## CATEGORÍA: FUNCIONES GENERALES, SOFTWARE Y TECNOLOGÍA (NUEVA GENERACIÓN)
+
+### Función: Mapas Offline y Rutas GPX
+- **Modelos compatibles:** Cubitt Viva Lite, Cubitt Terra, Cubitt Aura Pro 2, Cubitt Viva Pro 2.
+- **Sincronización con Strava:** App Cubitt Pro > Perfil > Configuración > Apps conectadas > Seleccionar "Strava" y autorizar acceso.
+- **Descarga e importación de mapas/rutas:**
+  1. Ir a la app Cubitt Pro > Sección "Más" > "Mis rutas" > "Importar" (autorizar si se solicita).
+  2. Subir un archivo `.gpx` desde el teléfono o importar directamente las rutas de Strava.
+  3. Seleccionar la ruta deseada > Guardar > "Enviar al dispositivo".
+- **Uso en entrenamiento (sin teléfono):** 
+  - Ir a Ejercicios en el reloj > Entrar a "Rutas" > Seleccionar la ruta cargada > Iniciar Workout.
+  - Permite visualizar la ruta en mapa en tiempo real, monitorear métricas y reproducir música simultáneamente.
+
+---
+
+### Función: AI Coach (Entrenador con IA) y Cursos
+- **Disponibilidad:** App Cubitt Pro e integración en el reloj.
+- **Acceso a cursos y rutinas:** App Cubitt Pro > Sección "Más" > "Cursos". Permite explorar entrenamientos preconfigurados, enviarlos al reloj o diseñar rutinas personalizadas.
+- **Guiado visual en el reloj:**
+  - Al iniciar el entrenamiento enviado, el reloj despliega los ejercicios y pasos a seguir.
+  - Incluye animaciones en pantalla guiando el movimiento exacto (disponible en entrenamientos seleccionados).
+- **Resumen y feedback inteligente:** Al finalizar el entrenamiento, la IA genera una evaluación automática del desempeño.
+- **Consultas a Vita:** Posibilidad de mantener una conversación posterior con Vita para recibir retroalimentación y consejos sobre la rutina realizada.
+
+---
+
+### Función: Música Offline y Control de Reproducción
+- **Modelos compatibles:** Todos los relojes Cubitt de nueva generación.
+- **Compatibilidad de sistema operativo:** Android e iOS.
+- **Transferencia de música local (MP3 sin teléfono):**
+  1. Abrir App Cubitt Pro > "Más detalles" > "Música" > "Importar".
+  2. Seleccionar los archivos `.mp3` del teléfono y transferirlos a la memoria interna del reloj.
+- **Modos de reproducción de audio:**
+  - **Bocina integrada del reloj:** En el reproductor del reloj, pulsar el botón de selección de dispositivo (junto al volumen) y elegir "Reloj".
+  - **Audífonos Bluetooth directos:** En el menú de música del reloj, seleccionar "Añadir dispositivos" > Vincular audífonos Bluetooth. Permite escuchar música descargada sin llevar el teléfono.
+  - **Control remoto de Smartphone:** En el reproductor del reloj, elegir "Teléfono". Permite pausar, cambiar o controlar el volumen de aplicaciones de streaming (Spotify, Apple Music, YouTube Music) ejecutadas en el celular (requiere teléfono cerca).
+
+---
+
+### Función: Vita (Asistente Virtual de Salud y Fitness)
+- **Modelos compatibles:** Todos los relojes Cubitt de nueva generación.
+- **Motor de Inteligencia Artificial:** Basado en tecnología ChatGPT, entrenado y especializado exclusivamente en Salud, Fitness, Recuperación y Deporte.
+- **Acceso directo en el reloj:** 
+  - Deslizar pantalla y presionar el icono de Vita.
+  - En el modelo **Cubitt Terra**, se puede activar directamente mediante el botón físico inferior.
+- **Comandos de voz en el smartwatch:** Hacer llamadas a contactos, configurar alarmas, programar temporizadores y realizar consultas directas.
+- **Integración con App Cubitt Pro:**
+  - Almacena el historial completo de conversaciones.
+  - Analiza de forma continua y global todas las métricas registradas (sueño, frecuencia cardíaca, nivel de recuperación y entrenamientos).
+- **Análisis conversacional de entrenamientos:** Genera una conclusión automática tras cada rutina e inicia un hilo de chat contextual para responder dudas específicas sobre el rendimiento (ej. cómo mejorar la resistencia, ritmo o tiempos de descanso).
